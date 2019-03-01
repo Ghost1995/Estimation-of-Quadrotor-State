@@ -2,14 +2,11 @@
 
 **Problem Statement**
 
-The task has been divided into two "modes", first being the SLAM mode and second, the Localization mode.
-
-In the SLAM mode, a map is constructed (using GTSAM) of the world given April-Tag inputs by optimizing the factor graph. The algorithm simultaneously localizes itself in the map.
-
-In Localization mode, this constructed map is used and, based on observations obtained, localizes itself in the map by estimating the 6DOF pose for each AprilTag visible to it in each frame using iSAM2 part of GTSAM package.
+In this phase, a vision-based 3-D velocity estimator is implemented and compared against a provided dataset gathered using some certain reliable and robust method.
 
 **Running the Code**
 
-Simply run Wrapper.m script.
+To run the code, just run Wrapper.m script.
 
-Machine Vision Toolbox for MATLAB of Peter Corke has been used to compute the homography.
+Machine Vision Toolbox for MATLAB of Peter Corke has been used to compute the homography. Computer Vision Toolbox of MATLAB has also been used for Velocity Estimation.
+
