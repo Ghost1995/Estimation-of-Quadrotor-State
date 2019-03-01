@@ -5,19 +5,20 @@ import gtsam.*
 
 % Create graph container and add factors to it
 graph = NonlinearFactorGraph;
+
+% define noise parameters
 if all(ismember(filename,'DataFastCircle.mat'))
     noise1 = noiseModel.Diagonal.Sigmas([0.001; 0.001; 0.001]);
     noise2 = noiseModel.Diagonal.Sigmas([10; 10; 1; 0.1; 0.01; 0.01]);
-    noise3 = noiseModel.Diagonal.Sigmas([3; 3]);
 elseif all(ismember(filename,'DataMapping.mat')) || all(ismember(filename,'DataSquare.mat')) || all(ismember(filename,'DataStraightLine.mat'))
     noise1 = noiseModel.Diagonal.Sigmas([0.01; 0.01; 0.01]);
     noise2 = noiseModel.Diagonal.Sigmas([0.5; 0.5; 1; 0.01; 0.01; 0.01]);
-    noise3 = noiseModel.Diagonal.Sigmas([3; 3]);
 elseif all(ismember(filename,'DataSlowCircle.mat')) || all(ismember(filename,'DataMountain.mat'))
     noise1 = noiseModel.Diagonal.Sigmas([0.001; 0.001; 0.001]);
-    noise2 = noiseModel.Diagonal.Sigmas([10; 10; 1; 0.1; 0.1; 0.1]);
-    noise3 = noiseModel.Diagonal.Sigmas([3; 3]);
+    noise2 = noiseModel.Diagonal.Sigmas([1; 10; 10; 0.1; 1; 0.1]);
 end
+noise3 = noiseModel.Diagonal.Sigmas([3; 3]);
+
 initialEstimate = Values;
 for i=1:size(LandMarksComputed,1)
     for j=1:4
@@ -111,14 +112,6 @@ AllPosesComputed = zeros(length(DetAll),7);
 for i=1:length(DetAll)
     try
         T = matrix(result.at(symbol('x',i)));
-        if i~=1
-            if abs(T1(1,4)-T(1,4))>10 || abs(T1(2,4)-T(2,4))>10 || abs(T1(2,4)-T(2,4))>10
-                T = T1;
-            else
-                T1 = T;
-            end
-        end
-        T1 = T;
         AllPosesComputed(i,:) = [T(1:3,4)',RotToQuat(T(1:3,1:3))'];
     catch
         AllPosesComputed(i,:) = [T(1:3,4)',RotToQuat(T(1:3,1:3))'];

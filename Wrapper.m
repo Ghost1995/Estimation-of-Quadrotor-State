@@ -19,11 +19,11 @@ addpath('QuaternionToolbox');
 %     LeftImgs(:,:,i) = rgb2gray(imread(['./Data/Fast Circle/FastCircleFrames/' num2str(i) '.jpg']));
 % end
 
-% filename = 'DataMapping.mat';
-% load('./Data/Mapping/DataMapping.mat');
-% for i=1:length(DetAll)
-%     LeftImgs(:,:,i) = rgb2gray(imread(['./Data/Mapping/MappingFrames/' num2str(i) '.jpg']));
-% end
+filename = 'DataMapping.mat';
+load('./Data/Mapping/DataMapping.mat');
+for i=1:length(DetAll)
+    LeftImgs(:,:,i) = rgb2gray(imread(['./Data/Mapping/MappingFrames/' num2str(i) '.jpg']));
+end
 
 % filename = 'DataMountain.mat';
 % load('./Data/Mountain/DataMountain.mat');
@@ -43,123 +43,164 @@ addpath('QuaternionToolbox');
 %     LeftImgs(:,:,i) = rgb2gray(imread(['./Data/Square/SquareFrames/' num2str(i) '.jpg']));
 % end
 
-filename = 'DataStraightLine.mat';
-load('./Data/Straight Line/DataStraightLine.mat');
-for i=1:length(DetAll)
-    LeftImgs(:,:,i) = rgb2gray(imread(['./Data/Straight Line/StraightLineFrames/' num2str(i) '.jpg']));
-end
+% filename = 'DataStraightLine.mat';
+% load('./Data/Straight Line/DataStraightLine.mat');
+% for i=1:length(DetAll)
+%     LeftImgs(:,:,i) = rgb2gray(imread(['./Data/Straight Line/StraightLineFrames/' num2str(i) '.jpg']));
+% end
 
 load('./Data/CalibParams.mat');
-load('LandMarksComputed.mat');
 
-%% Localization using iSAM2
-AllPosesComputed = LocalizationUsingiSAM2(DetAll, K, TagSize, LandMarksComputed, filename);
-
-% % Plot the result
-% figure
-% subplot(1,3,1);
-% hold on
-% plot3(AllPosesComputed(:,1),AllPosesComputed(:,2),AllPosesComputed(:,3));
-% plot3(PoseiSAM2(:,1),PoseiSAM2(:,2),PoseiSAM2(:,3),'g*');
-% for i=1:4
-%     plot3(LandMarksComputed(:,2*i),LandMarksComputed(:,2*i+1),zeros(size(LandMarksComputed,1),1),'r*');
-% end
-% hold off
-% legend({'Camera Poses','GroundTruth','April Tags'})
-% xlabel('Distance in x-direction (m)')
-% ylabel('Distance in y-direction (m)')
-% view(2)
-% 
-% subplot(1,3,2);
-% hold on
-% plot3(AllPosesComputed(:,1),AllPosesComputed(:,2),AllPosesComputed(:,3));
-% plot3(PoseiSAM2(:,1),PoseiSAM2(:,2),PoseiSAM2(:,3),'g*');
-% for i=1:4
-%     plot3(LandMarksComputed(:,2*i),LandMarksComputed(:,2*i+1),zeros(size(LandMarksComputed,1),1),'r*');
-% end
-% hold off
-% legend({'Camera Poses','GroundTruth','April Tags'})
-% zlabel('Distance in z-direction (m)')
-% ylabel('Distance in y-direction (m)')
-% view(90,0)
-% 
-% subplot(1,3,3);
-% hold on
-% plot3(AllPosesComputed(:,1),AllPosesComputed(:,2),AllPosesComputed(:,3));
-% plot3(PoseiSAM2(:,1),PoseiSAM2(:,2),PoseiSAM2(:,3),'g*');
-% for i=1:4
-%     plot3(LandMarksComputed(:,2*i),LandMarksComputed(:,2*i+1),zeros(size(LandMarksComputed,1),1),'r*');
-% end
-% hold off
-% legend({'Camera Poses','GroundTruth','April Tags'})
-% xlabel('Distance in x-direction (m)')
-% zlabel('Distance in z-direction (m)')
-% view(180,0)
-% 
-% supertitle('April Tag Locations and Camera Poses computed using iSAM2')
+%% SLAM Using GTSAM
+[LandMarksComputed, AllPosesComputedGTSAM, covariance] = SLAMusingGTSAM(DetAll, K, TagSize, filename);
 
 %% Estimate Velocity
-dT = mean(abs(TLeftImgs(2:end) - TLeftImgs(1:end-1)));
-Z = correctAltitude(AllPosesComputed, LandMarksComputed, TagSize, K);
+dT = [0;abs(TLeftImgs(2:end) - TLeftImgs(1:end-1))];
+Z = correctAltitude(AllPosesComputedGTSAM, LandMarksComputed, TagSize, K);
 V = velocityEstimator(LeftImgs, dT, K, Z);
 % convert velocity to world frame
+VelComputedGTSAM = zeros(length(DetAll),3);
 for i=1:length(DetAll)
-    T = [QuatToRot(AllPosesComputed(i,4:7)),AllPosesComputed(i,1:3)'; 0 0 0 1];
-    v = [T, zeros(4); zeros(4), T]*[V(i,1:3)'; 1; V(i,4:6)'; 1];
-    V(i,:) = [v(1:3)', v(5:7)'];
+    VelComputedGTSAM(i,:) = QuatToRot(AllPosesComputedGTSAM(i,4:7))*V(i,1:3)' + AllPosesComputedGTSAM(i,1:3)';
 end
-VelError = ComputeVelError(V(:,1:3),VeliSAM2);
 
-% % Plot the result
-% figure
-% subplot(1,3,1);
-% hold on
-% plot(V(:,1));
-% plot(VeliSAM2(:,1));
-% hold off
-% legend({'Estimated Velocity','Actual Velocity'})
-% xlabel('Frame Number')
-% ylabel('Velocity in x-direction (m/s)')
-% 
-% subplot(1,3,2);
-% hold on
-% plot(V(:,2));
-% plot(VeliSAM2(:,2));
-% hold off
-% legend({'Estimated Velocity','Actual Velocity'})
-% xlabel('Frame Number')
-% ylabel('Velocity in y-direction (m/s)')
-% 
-% subplot(1,3,3);
-% hold on
-% plot(V(:,3));
-% plot(VeliSAM2(:,3));
-% hold off
-% legend({'Estimated Velocity','Actual Velocity'})
-% xlabel('Frame Number')
-% ylabel('Velocity in z-direction (m/s)')
-% 
-% supertitle('Velocity of the Quadrotor estimated using Camera Poses computed using iSAM2')
-% 
-% % Plot the result
-% figure
-% subplot(1,3,1);
-% plot(VelError(:,1));
-% legend({'Error in Velocity in x-direction'})
-% xlabel('Frame Number')
-% ylabel('Error (m)')
-% 
-% subplot(1,3,2);
-% plot(VelError(:,2));
-% legend({'Error in Velocity in y-direction'})
-% xlabel('Frame Number')
-% ylabel('Error (m)')
-% 
-% subplot(1,3,3);
-% hold on
-% plot(VelError(:,3));
-% legend({'Error in Velocity in z-direction'})
-% xlabel('Frame Number')
-% ylabel('Error (m)')
-% 
-% supertitle('Error in Velocity Estimation using Camera Poses computed using iSAM2')
+%% Localization using iSAM2
+AllPosesComputediSAM = LocalizationUsingiSAM2(DetAll, K, TagSize, LandMarksComputed, filename);
+
+%% Estimate Velocity
+dT = [0;abs(TLeftImgs(2:end) - TLeftImgs(1:end-1))];
+Z = correctAltitude(AllPosesComputediSAM, LandMarksComputed, TagSize, K);
+V = velocityEstimator(LeftImgs, dT, K, Z);
+% convert velocity to world frame
+VelComputediSAM = zeros(length(DetAll),3);
+for i=1:length(DetAll)
+    VelComputediSAM(i,:) = QuatToRot(AllPosesComputediSAM(i,4:7))*V(i,1:3)' + AllPosesComputediSAM(i,1:3)';
+end
+VelError = ComputeVelError(VelComputediSAM,VeliSAM2);
+covariance = [covariance, zeros(6,3); zeros(3,6), cov(VelError)];
+
+%% Extended Kalman Filter
+PoseEKF = extendedKalmanFilter(AllPosesComputediSAM, VelComputediSAM, IMU, TLeftImgs, covariance);
+
+% Plot the result (Position)
+figure
+subplot(1,3,1);
+hold on
+plot(AllPosesComputediSAM(:,1));
+plot(PoseEKF(:,1));
+plot(PoseGTSAM(:,1));
+plot(AllPosesComputedGTSAM(:,1));
+hold off
+legend({'iSAM2 Output','EKF Output','GTSAM Ground Truth','GTSAM Output'})
+xlabel('Frame Number')
+ylabel('Position in x-direction (m)')
+
+subplot(1,3,2);
+hold on
+plot(AllPosesComputediSAM(:,2));
+plot(PoseEKF(:,2));
+plot(PoseGTSAM(:,2));
+plot(AllPosesComputedGTSAM(:,2));
+hold off
+legend({'iSAM2 Output','EKF Output','GTSAM Ground Truth','GTSAM Output'})
+xlabel('Frame Number')
+ylabel('Position in y-direction (m)')
+
+subplot(1,3,3);
+hold on
+plot(AllPosesComputediSAM(:,3));
+plot(PoseEKF(:,3));
+plot(PoseGTSAM(:,3));
+plot(AllPosesComputedGTSAM(:,3));
+hold off
+legend({'iSAM2 Output','EKF Output','GTSAM Ground Truth','GTSAM Output'})
+xlabel('Frame Number')
+ylabel('Position in z-direction (m)')
+
+supertitle('Position of the Quadrotor')
+    
+OrientationComputediSAM = zeros(length(DetAll),3);
+for i=1:length(DetAll)
+    OrientationComputediSAM(i,:) = RotToRPY_ZXY(QuatToRot(AllPosesComputediSAM(i,4:7)));
+end
+OrientationGTSAM = zeros(length(DetAll),3);
+for i=1:length(DetAll)
+    OrientationGTSAM(i,:) = RotToRPY_ZXY(QuatToRot(PoseGTSAM(i,4:7)));
+end
+OrientationComputedGTSAM = zeros(length(DetAll),3);
+for i=1:length(DetAll)
+    OrientationComputedGTSAM(i,:) = RotToRPY_ZXY(QuatToRot(AllPosesComputedGTSAM(i,4:7)));
+end
+% Plot the result (Orientation)
+figure
+subplot(1,3,1);
+hold on
+plot(OrientationComputediSAM(:,1));
+plot(PoseEKF(:,4));
+plot(OrientationGTSAM(:,1));
+plot(OrientationComputedGTSAM(:,1));
+hold off
+legend({'iSAM2 Output','EKF Output','GTSAM Ground Truth','GTSAM Output'})
+xlabel('Frame Number')
+ylabel('Orientation about x-direction (rad)')
+    
+subplot(1,3,2);
+hold on
+plot(OrientationComputediSAM(:,2));
+plot(PoseEKF(:,5));
+plot(OrientationGTSAM(:,2));
+plot(OrientationComputedGTSAM(:,2));
+hold off
+legend({'iSAM2 Output','EKF Output','GTSAM Ground Truth','GTSAM Output'})
+xlabel('Frame Number')
+ylabel('Orientation about y-direction (rad)')
+
+subplot(1,3,3);
+hold on
+plot(OrientationComputediSAM(:,3));
+plot(PoseEKF(:,6));
+plot(OrientationGTSAM(:,3));
+plot(OrientationComputedGTSAM(:,3));
+hold off
+legend({'iSAM2 Output','EKF Output','GTSAM Ground Truth','GTSAM Output'})
+xlabel('Frame Number')
+ylabel('Orientation about z-direction (rad)')
+    
+supertitle('Orientation of the Quadrotor')
+    
+% Plot the result (Velocity)
+figure
+subplot(1,3,1);
+hold on
+plot(VelComputediSAM(:,1));
+plot(PoseEKF(:,7));
+plot(VelGTSAM(:,1));
+plot(VelComputedGTSAM(:,1));
+hold off
+legend({'iSAM2 Output','EKF Output','GTSAM Ground Truth','GTSAM Output'})
+xlabel('Frame Number')
+ylabel('Velocity in x-direction (m/s)')
+    
+subplot(1,3,2);
+hold on
+plot(VelComputediSAM(:,2));
+plot(PoseEKF(:,8));
+plot(VelGTSAM(:,2));
+plot(VelComputedGTSAM(:,2));
+hold off
+legend({'iSAM2 Output','EKF Output','GTSAM Ground Truth','GTSAM Output'})
+xlabel('Frame Number')
+ylabel('Velocity in y-direction (m/s)')
+
+subplot(1,3,3);
+hold on
+plot(VelComputediSAM(:,3));
+plot(PoseEKF(:,9));
+plot(VelGTSAM(:,3));
+plot(VelComputedGTSAM(:,3));
+hold off
+legend({'iSAM2 Output','EKF Output','GTSAM Ground Truth','GTSAM Output'})
+xlabel('Frame Number')
+ylabel('Velocity in z-direction (m/s)')
+    
+supertitle('Velocity of the Quadrotor')
