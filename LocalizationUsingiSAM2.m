@@ -1,12 +1,23 @@
-function AllPosesComputed = LocalizationUsingiSAM2(DetAll, K, TagSize, ~, ~, ~, ~, ~, LandMarksComputed)
+function AllPosesComputed = LocalizationUsingiSAM2(DetAll, K, TagSize, LandMarksComputed, filename)
 % For Input and Output specifications refer to the project pdf
 
 import gtsam.*
 
 % Create graph container and add factors to it
 graph = NonlinearFactorGraph;
-
-noise1 = noiseModel.Diagonal.Sigmas([0.001; 0.001; 0.001]);
+if all(ismember(filename,'DataFastCircle.mat'))
+    noise1 = noiseModel.Diagonal.Sigmas([0.001; 0.001; 0.001]);
+    noise2 = noiseModel.Diagonal.Sigmas([10; 10; 1; 0.1; 0.01; 0.01]);
+    noise3 = noiseModel.Diagonal.Sigmas([3; 3]);
+elseif all(ismember(filename,'DataMapping.mat')) || all(ismember(filename,'DataSquare.mat')) || all(ismember(filename,'DataStraightLine.mat'))
+    noise1 = noiseModel.Diagonal.Sigmas([0.01; 0.01; 0.01]);
+    noise2 = noiseModel.Diagonal.Sigmas([0.5; 0.5; 1; 0.01; 0.01; 0.01]);
+    noise3 = noiseModel.Diagonal.Sigmas([3; 3]);
+elseif all(ismember(filename,'DataSlowCircle.mat')) || all(ismember(filename,'DataMountain.mat'))
+    noise1 = noiseModel.Diagonal.Sigmas([0.001; 0.001; 0.001]);
+    noise2 = noiseModel.Diagonal.Sigmas([10; 10; 1; 0.1; 0.1; 0.1]);
+    noise3 = noiseModel.Diagonal.Sigmas([3; 3]);
+end
 initialEstimate = Values;
 for i=1:size(LandMarksComputed,1)
     for j=1:4
@@ -25,8 +36,6 @@ for i=1:size(LandMarksComputed,1)
 end
 
 % Add prior for first camera pose
-noise2 = noiseModel.Diagonal.Sigmas([0.5; 0.5; 0.01; 0.01; 0.01; 0.01]);
-noise3 = noiseModel.Diagonal.Sigmas([3; 3]);
 intrinsic = Cal3_S2(K(1,1),K(2,2),K(1,2),K(1,3),K(2,3));
 imagePointsInitialized = [];
 worldPointsInitialized = [];
